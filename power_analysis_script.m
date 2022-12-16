@@ -103,14 +103,14 @@ ciftisave(pconn_gordon_template,strcat(data_folder,'/sub-5000_ses-treatment-effe
 
 %declare needed variables for this stage
 TR=1.2;
-gordon_ROIs = [23,191];
-positive_precision_ROIs = [22,329];
-control_precision_ROIs = [43,324];
+gordon_ROIs = [21,180];
+positive_precision_ROIs = [44,338];
+control_precision_ROIs = [35,328];
 frames_per_min = 60/TR;
 frame_lengths = frames_per_min*5:frames_per_min*5:frames_per_min*60;
 nsubs_per_group = 40;
 sample_size_sets = [10 20 30 40];
-npermutations = 1000;
+npermutations = 100;
 time = [0 1];
 %extract indices to randomly sample for tmasks
 positive_pretreat_tmask_idx = find(positive_pretreat_tmask == 1);
@@ -193,10 +193,24 @@ for iter = 1:npermutations
 end
 gordon_power_matrix = gordon_power_matrix./npermutations;
 precision_power_matrix = precision_power_matrix./npermutations;
+
+%% create data visualizations for power analysis
 gordon_power_80 = zeros(length(sample_size_sets),2);
 precision_power_80 = gordon_power_80;
 gordon_power_30 = gordon_power_80;
 precision_power_30 = precision_power_80;
+power_plot_nsubs80 = zeros(length(frame_lengths)*2,2);
+power_plot_nsubs80(1:length(frame_lengths),1) = gordon_power_matrix(end,:);
+power_plot_nsubs80(length(frame_lengths)+1:end,1) = precision_power_matrix(end,:);
+power_plot_nsubs80(1:length(frame_lengths),2) = frame_lengths.*(TR/60);
+power_plot_nsubs80(length(frame_lengths)+1:end,2) = frame_lengths.*(TR/60);
+figure()
+power_nsubs80_labels = [repmat({'gordon'},length(frame_lengths),1); repmat({'precision'},length(frame_lengths),1)];
+power_gramm = gramm("x",power_plot_nsubs80(:,2),"y",power_plot_nsubs80(:,1),"color",power_nsubs80_labels);
+power_gramm.geom_line()
+power_gramm.set_title("Power vs. # minutes: N = 80",'FontSize',16)
+power_gramm.set_names("x","#minutes","y","%power","color","ROI")
+power_gramm.draw()
 for iter = 1:length(sample_size_sets)
     temp_index = find(gordon_power_matrix(iter,:) >= 0.8);
     gordon_power_80(iter,1) = sample_size_sets(iter)*2;
