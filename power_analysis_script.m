@@ -59,6 +59,9 @@ positive_posttreat_gordon = ciftiopen(strcat(data_folder,'/sub-5003_ses-post-mas
 positive_pretreat_tmask = dlmread(strcat(data_folder,'/5003_pre-massage.tmask'));
 positive_posttreat_tmask = dlmread(strcat(data_folder,'/5003_post-massage.tmask'));
 
+positive_pretreat_gordon_ALFF = dlmread(strcat(data_folder,'/5003_pre-massage_gordon_parcels.txt'));
+positive_pretreat_precision_ALFF = dlmread(strcat(data_folder,'/5003_pre-massage_individ_parcels.txt'));
+
 positive_pretreat_precision_ts = positive_pretreat_precision.cdata;
 positive_posttreat_precision_ts = positive_posttreat_precision.cdata;
 positive_pretreat_gordon_ts = positive_pretreat_gordon.cdata;
@@ -98,6 +101,25 @@ pconn_gordon_template.cdata = control_treatment_effect_gordon_pconn;
 ciftisave(pconn_control_precision_template,strcat(data_folder,'/sub-5000_ses-treatment-effect_ROI-precision.pconn.nii'),wb_command);
 ciftisave(pconn_gordon_template,strcat(data_folder,'/sub-5000_ses-treatment-effect_ROI-gordon.pconn.nii'),wb_command);
 
+%% declare SMN labels for HB3 power analysis
+
+SMN_precision_indices = sort([169 74 3 75 82 72 81 84 ...
+    85 56 55 83 80 70 131 67 65 54 63 53 79 51 142 39 52 66 41 40 42 50 49 48 47 ...
+    477 457 456 465 293 345 363 364 365 466 464 462 367 366 373 372 369 371 360 ...
+    370 342 344 350 351 354 343 359 439 355 357 331 356 353 341 358 340 440 327 ...
+    292 335 326 328 329 330 332 314 313 339 337]);
+
+SMN_gordon_indices = sort([ 53 3 39 59 54 56 58 38 45 47 50 57 31 46 32 48 2 ...
+    33 36 37 35 30 212 164 218 197 270 213 217 216 201 205 207 210 215 ...
+    209 214 190 163 206 204 202 193 191 194 195]);
+
+positive_gordon_SMN_meanFC = mean(positive_pretreat_gordon_pconn_full(SMN_gordon_indices,SMN_gordon_indices));
+positive_precision_SMN_meanFC = mean(positive_pretreat_precision_pconn_full(SMN_precision_indices,SMN_gordon_indices));
+positive_gordon_SMN_meaneffect = mean(positive_treatment_effect_gordon_pconn(SMN_gordon_indices,SMN_gordon_indices));
+positive_precision_SMN_meaneffect = mean(positive_treatment_effect_precision_pconn(SMN_precision_indices,SMN_precision_indices));
+
+positive_gordon_SMN_ALFF = positive_pretreat_gordon_ALFF(SMN_gordon_indices);
+positive_precision_SMN_ALFF = positive_pretreat_precision_ALFF(SMN_precision_indices);
 
 %% calculate effect sizes and conducted statistical tests via resampling
 
@@ -110,7 +132,7 @@ frames_per_min = 60/TR;
 frame_lengths = frames_per_min*5:frames_per_min*5:frames_per_min*60;
 nsubs_per_group = 40;
 sample_size_sets = [10 20 30 40];
-npermutations = 100;
+npermutations = 1000;
 time = [0 1];
 %extract indices to randomly sample for tmasks
 positive_pretreat_tmask_idx = find(positive_pretreat_tmask == 1);
@@ -129,6 +151,8 @@ positive_posttreat_precision_sim_matrices = control_pretreat_gordon_sim_matrices
 
 gordon_power_matrix = zeros(length(sample_size_sets),length(frame_lengths));
 precision_power_matrix = gordon_power_matrix;
+gordon_ALFF_power = zeros(length(frame_lengths),1);
+precision_ALFF_power = gordon_ALFF_power;
 %simulate all data needed for a comparison
 rng('shuffle');
 for iter = 1:npermutations
@@ -138,19 +162,19 @@ for iter = 1:npermutations
             temp_frames = control_pretreat_tmask_idx(randperm(length(control_pretreat_tmask_idx),curr_frame_length),1);
             temp_corr = corr(control_pretreat_gordon_ts(gordon_ROIs,temp_frames)');
             control_pretreat_gordon_sim_matrices(curr_subs,frame_length_idx) = temp_corr(1,2);
-    
+            
             temp_frames = control_posttreat_tmask_idx(randperm(length(control_posttreat_tmask_idx),curr_frame_length),1);
             temp_corr = corr(control_posttreat_gordon_ts(gordon_ROIs,temp_frames)');
             control_posttreat_gordon_sim_matrices(curr_subs,frame_length_idx) = temp_corr(1,2);
-    
-            temp_frames = positive_pretreat_tmask_idx(randperm(length(positive_pretreat_tmask_idx),curr_frame_length),1);
-            temp_corr = corr(positive_pretreat_gordon_ts(gordon_ROIs,temp_frames)');
+            
+            temp_pretreat_gordon_frames = positive_pretreat_tmask_idx(randperm(length(positive_pretreat_tmask_idx),curr_frame_length),1);
+            temp_corr = corr(positive_pretreat_gordon_ts(gordon_ROIs,temp_pretreat_gordon_frames)');
             positive_pretreat_gordon_sim_matrices(curr_subs,frame_length_idx) = temp_corr(1,2);
             
-            temp_frames = positive_posttreat_tmask_idx(randperm(length(positive_posttreat_tmask_idx),curr_frame_length),1);
-            temp_corr = corr(positive_posttreat_gordon_ts(gordon_ROIs,temp_frames)');
-            positive_posttreat_gordon_sim_matrices(curr_subs,frame_length_idx) = temp_corr(1,2);
-      
+            temp_posttreat_gordon_frames = positive_posttreat_tmask_idx(randperm(length(positive_posttreat_tmask_idx),curr_frame_length),1);
+            temp_corr = corr(positive_posttreat_gordon_ts(gordon_ROIs,temp_posttreat_gordon_frames)');
+            positive_posttreat_gordon_sim_matrices(curr_subs,frame_length_idx) = temp_corr(1,2);    
+            
             temp_frames = control_pretreat_tmask_idx(randperm(length(control_pretreat_tmask_idx),curr_frame_length),1);
             temp_corr = corr(control_pretreat_precision_ts(control_precision_ROIs,temp_frames)');
             control_pretreat_precision_sim_matrices(curr_subs,frame_length_idx) = temp_corr(1,2);
@@ -158,15 +182,33 @@ for iter = 1:npermutations
             temp_frames = control_posttreat_tmask_idx(randperm(length(control_posttreat_tmask_idx),curr_frame_length),1);
             temp_corr = corr(control_posttreat_precision_ts(control_precision_ROIs,temp_frames)');
             control_posttreat_precision_sim_matrices(curr_subs,frame_length_idx) = temp_corr(1,2);
-    
-            temp_frames = positive_pretreat_tmask_idx(randperm(length(positive_pretreat_tmask_idx),curr_frame_length),1);
-            temp_corr = corr(positive_pretreat_precision_ts(positive_precision_ROIs,temp_frames)');
+
+            temp_pretreat_precision_frames = positive_pretreat_tmask_idx(randperm(length(positive_pretreat_tmask_idx),curr_frame_length),1);
+            temp_corr = corr(positive_pretreat_precision_ts(positive_precision_ROIs,temp_pretreat_precision_frames)');
             positive_pretreat_precision_sim_matrices(curr_subs,frame_length_idx) = temp_corr(1,2);
             
-            temp_frames = positive_posttreat_tmask_idx(randperm(length(positive_posttreat_tmask_idx),curr_frame_length),1);
-            temp_corr = corr(positive_posttreat_precision_ts(positive_precision_ROIs,temp_frames)');
+            temp_posttreat_precision_frames = positive_posttreat_tmask_idx(randperm(length(positive_posttreat_tmask_idx),curr_frame_length),1);
+            temp_corr = corr(positive_posttreat_precision_ts(positive_precision_ROIs,temp_posttreat_precision_frames)');
             positive_posttreat_precision_sim_matrices(curr_subs,frame_length_idx) = temp_corr(1,2);
-           
+            
+            if curr_subs == 1
+                gordon_pretreat_temp_mat = corr(positive_pretreat_gordon_ts(:,temp_pretreat_gordon_frames)');
+                gordon_posttreat_temp_mat = corr(positive_posttreat_gordon_ts(:,temp_posttreat_gordon_frames)');
+                precision_pretreat_temp_mat = corr(positive_pretreat_precision_ts(:,temp_pretreat_precision_frames)');
+                precision_posttreat_temp_mat = corr(positive_posttreat_precision_ts(:,temp_posttreat_precision_frames)');
+                gordon_effect_matrix = gordon_pretreat_temp_mat - gordon_posttreat_temp_mat;
+                precision_effect_matrix = precision_pretreat_temp_mat - precision_posttreat_temp_mat;
+                positive_gordon_SMN_meaneffect_perm = mean(gordon_effect_matrix(SMN_gordon_indices,SMN_gordon_indices));
+                positive_precision_SMN_meaneffect_perm = mean(precision_effect_matrix(SMN_precision_indices,SMN_precision_indices));
+                ALFF_FC_gordon = anova(fitlm(positive_gordon_SMN_meaneffect_perm,positive_gordon_SMN_ALFF));
+                ALFF_FC_precision = anova(fitlm(positive_precision_SMN_meaneffect_perm,positive_precision_SMN_ALFF));
+                if table2array(ALFF_FC_gordon(1,5)) <= 0.05
+                    gordon_ALFF_power(frame_length_idx) = gordon_ALFF_power(frame_length_idx) + 1;
+                end
+                if table2array(ALFF_FC_precision(1,5)) <= 0.05
+                    precision_ALFF_power(frame_length_idx) = precision_ALFF_power(frame_length_idx) + 1;
+                end
+            end
             frame_length_idx = frame_length_idx + 1;
         end
     end
@@ -193,6 +235,8 @@ for iter = 1:npermutations
 end
 gordon_power_matrix = gordon_power_matrix./npermutations;
 precision_power_matrix = precision_power_matrix./npermutations;
+gordon_ALFF_power = gordon_ALFF_power./npermutations;
+precision_ALFF_power = precision_ALFF_power./npermutations;
 
 %% create data visualizations for power analysis
 gordon_power_80 = zeros(length(sample_size_sets),2);
@@ -263,3 +307,12 @@ power_gramm.geom_line()
 power_gramm.set_title("Data needed to achieve 30 percent power",'FontSize',16)
 power_gramm.set_names("x","#minutes","y","#subjects","color","ROI")
 power_gramm.draw()
+
+figure()
+precision_power_by_time = [precision_ALFF_power, frame_lengths'.*(1.2/60)];
+precision_power_gramm = gramm("x",precision_power_by_time(:,2),"y",precision_power_by_time(:,1));
+precision_power_gramm.geom_line()
+precision_power_gramm.set_title("Power for ALFF-deltaFC association by time")
+precision_power_gramm.set_names("x","#minutes","y","Power (%)")
+precision_power_gramm.draw()
+
